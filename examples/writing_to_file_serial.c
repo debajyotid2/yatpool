@@ -143,6 +143,7 @@ int main(int argc, char** argv) {
     }
 
     munmap(file_buf, file_size);
+    close(fd);
 
     gettimeofday(&end, NULL);
     duration = (end.tv_sec-start.tv_sec)*1000000+\
