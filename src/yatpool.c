@@ -259,7 +259,7 @@ void yatpool_init(YATPool** pool, size_t num_threads, size_t num_tasks) {
 
     *pool = (YATPool*)malloc(sizeof(YATPool));
 
-    (*pool)->threads = (pthread_t*)calloc(num_threads, sizeof(YATPool));
+    (*pool)->threads = (pthread_t*)calloc(num_threads, sizeof(pthread_t));
     
     taskqueue_init(&(*pool)->task_queue, MAX_QUEUE_SIZE);
 
