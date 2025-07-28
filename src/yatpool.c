@@ -38,7 +38,7 @@
 #define EMPTY_QUEUE_VALUE 0
 
 typedef struct queue {
-    size_t length, curr_size;
+    size_t length, curr_size, start, end;
     void** data;
 } TaskQueue;
 
@@ -51,6 +51,7 @@ void taskqueue_init(TaskQueue** q, size_t length) {
     (*q)->data = (void**)calloc(length, sizeof(void *));
     (*q)->length = length;
     (*q)->curr_size = 0;
+    (*q)->start = (*q)->end = 0;
 }
 
 /// Add a value to the queue
@@ -63,10 +64,12 @@ bool taskqueue_put(TaskQueue *q, void* value) {
         ERR("Null pointer for value provided.");
         return false;
     }
-    if ((q->curr_size + 1) > q->length) {
+    if ((q->end + 1) % q->length == q->start) {
+        // Queue is full
         return false;
     }
-    q->data[q->curr_size] = value;
+    q->data[q->end] = value;
+    q->end = (q->end + 1) % q->length;
     (q->curr_size)++;
 
     return true;
@@ -78,27 +81,27 @@ size_t taskqueue_size(TaskQueue *q) {
     return q->curr_size;
 }
 
-/// Get the first element of the queue
+/// Get the first element of the queue, without removing it
 void* taskqueue_get(TaskQueue *q) {
     if (q == NULL) ERR_AND_EXIT("Null value for queue pointer provided.");
-    if (q->curr_size == 0) {
+    if (q->start == q->end) {
+        // Empty queue
         return EMPTY_QUEUE_VALUE;
     }
-    return q->data[0];
+    return q->data[q->start];
 }
 
 
 /// Get the first element and remove it from the queue
 void* taskqueue_pop(TaskQueue *q) {
     if (q == NULL) ERR_AND_EXIT("Null value for queue pointer provided.");
-    if (q->curr_size == 0) {
+    if (q->start == q->end) {
+        // Empty queue
         return EMPTY_QUEUE_VALUE;
     }
 
-    void* elem = q->data[0];
-    for (size_t i = 0; i < q->curr_size - 1; i++) {
-        q->data[i] = q->data[i + 1];
-    }
+    void* elem = q->data[q->start];
+    q->start = (q->start + 1) % q->length;
     q->curr_size--;
     return elem;
 }
@@ -118,17 +121,21 @@ bool taskqueue_full(TaskQueue *q) {
 /// Clear the task queue
 void taskqueue_clear(TaskQueue *q) {
     if (q == NULL) ERR_AND_EXIT("Null value for queue pointer provided.");
-    for (size_t i=0; i<q->curr_size; ++i)
-        free(q->data[i]);
     q->curr_size = 0;
+    if (q->start == q->end) {
+        // Empty queue
+        return;
+    }
+    for (size_t i=q->start; i!=q->end; i=(i+1) % q->length) {
+        free(q->data[i]);
+    }
 }
 
 /// Destroy a TaskQueue instance
 void taskqueue_destroy(TaskQueue *q) {
     if (q == NULL) ERR_AND_EXIT("Null value for queue pointer provided.");
     
-    for (size_t i=0; i<q->curr_size; ++i)
-        free(q->data[i]);
+    taskqueue_clear(q);
     free(q->data);
     free(q);
 }
@@ -260,7 +267,7 @@ void yatpool_init(YATPool** pool, size_t num_threads, size_t num_tasks) {
     *pool = (YATPool*)malloc(sizeof(YATPool));
 
     (*pool)->threads = (pthread_t*)calloc(num_threads, sizeof(pthread_t));
-    
+   
     taskqueue_init(&(*pool)->task_queue, MAX_QUEUE_SIZE);
 
     (*pool)->retvalarr = (void**)calloc(num_tasks, sizeof(void*));
