@@ -334,19 +334,6 @@ void** yatpool_wait(YATPool* pool) {
     return pool->retvalarr;
 }
 
-/// Join all threads in a thread pool.
-void** yatpool_join(YATPool* pool) {
-    if (pool==NULL) {
-        ERR("yatpool pointer is null.");
-        return NULL;
-    }
-    for (size_t i = 0; i < pool->pool_size; ++i) {
-        if (pthread_join(pool->threads[i], NULL) != 0) 
-            ERR_AND_EXIT("Failed to join threads.");
-    }
-    return pool->retvalarr;
-}
-
 /// Reset a thread pool without joining threads or destroying it.
 void yatpool_reset(YATPool* pool, size_t num_tasks) {
     if (pool==NULL) {
@@ -386,8 +373,9 @@ void yatpool_destroy(YATPool* pool) {
     taskqueue_destroy(pool->task_queue);
     free(pool->threads);
 
-    for (int i=0; i<pool->total_tasks; ++i)
+    for (int i=0; i<pool->total_tasks; ++i) {
         free(pool->retvalarr[i]);
+    }
     free(pool->retvalarr);
     free(pool);
     return;
