@@ -166,7 +166,9 @@ void *_yatpool_worker(void *arg) {
             all_done = true;
         }
         pthread_mutex_unlock(&pool->mutex);
-        pthread_cond_broadcast(&pool->cond_done);
+        if (all_done) {
+            pthread_cond_broadcast(&pool->cond_done);
+        }
     }
     return NULL;
 }
