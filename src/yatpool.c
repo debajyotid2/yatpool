@@ -168,7 +168,7 @@ void task_init(Task **task, void *(*taskfunc)(void *), void *arg, void (*argdest
 
 
 /// Start a task thread
-void* _yatpool_start_thread(void* arg) {
+void* _yatpool_worker(void* arg) {
     YATPool* pool = (YATPool*)arg;
 
     while (true) {
@@ -207,47 +207,38 @@ void* _yatpool_start_thread(void* arg) {
     return NULL;
 }
 
-/// Create threads
-void _yatpool_create_threads(YATPool* pool) {
-    if (pool==NULL) {
+/// Initialize a thread pool.
+void yatpool_init(YATPool** pool_ptr, size_t num_threads) {
+    if (num_threads==0) ERR_AND_EXIT("num_threads cannot be zero.");
+
+    if (pool_ptr==NULL) {
         ERR("yatpool pointer is null.");
         return;
     }
 
+    *pool_ptr = (YATPool*)malloc(sizeof(YATPool));
+    YATPool* pool = *pool_ptr;
+
+    pool->threads = (pthread_t*)calloc(num_threads, sizeof(pthread_t));
+   
+    taskqueue_init(&pool->task_queue, MAX_QUEUE_SIZE);
+
+    pthread_attr_init(&pool->attr);
+    pthread_cond_init(&pool->cond_queue, NULL);
+    pthread_cond_init(&pool->cond_slot_available, NULL);
+    pthread_cond_init(&pool->cond_done, NULL);
+    pthread_mutex_init(&pool->mutex, NULL);
+
+    pool->pool_size = num_threads;
+    pool->done = false;
+    pool->tasks_completed = 0;
+    pool->tasks_submitted = 0;
+
     for (size_t i = 0; i < pool->pool_size; ++i) {
-        if (pthread_create(&pool->threads[i], &pool->attr, &_yatpool_start_thread, pool) != 0) {
+        if (pthread_create(&pool->threads[i], &pool->attr, &_yatpool_worker, pool) != 0) {
             ERR_AND_EXIT("Could not create thread");
         }
     }
-}
-
-/// Initialize a thread pool.
-void yatpool_init(YATPool** pool, size_t num_threads) {
-    if (num_threads==0) ERR_AND_EXIT("num_threads cannot be zero.");
-
-    if (pool==NULL) {
-        ERR("yatpool pointer is null.");
-        return;
-    }
-
-    *pool = (YATPool*)malloc(sizeof(YATPool));
-
-    (*pool)->threads = (pthread_t*)calloc(num_threads, sizeof(pthread_t));
-   
-    taskqueue_init(&(*pool)->task_queue, MAX_QUEUE_SIZE);
-
-    pthread_attr_init(&(*pool)->attr);
-    pthread_cond_init(&(*pool)->cond_queue, NULL);
-    pthread_cond_init(&(*pool)->cond_slot_available, NULL);
-    pthread_cond_init(&(*pool)->cond_done, NULL);
-    pthread_mutex_init(&(*pool)->mutex, NULL);
-
-    (*pool)->pool_size = num_threads;
-    (*pool)->done = false;
-    (*pool)->tasks_completed = 0;
-    (*pool)->tasks_submitted = 0;
-
-    _yatpool_create_threads(*pool);
 };
 
 /// Submit a task to a threadpool
