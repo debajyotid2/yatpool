@@ -75,17 +75,6 @@ static inline bool taskqueue_put(TaskQueue *q, void *value) {
     return true;
 }
 
-/// Get the first element of the queue, without removing it
-static inline void *taskqueue_get(TaskQueue *q) {
-    if (q == NULL)
-        ERR_AND_EXIT("Null value for queue pointer provided.");
-    if (q->start == q->end) {
-        // Empty queue
-        return EMPTY_QUEUE_VALUE;
-    }
-    return q->data[q->start];
-}
-
 /// Get the first element and remove it from the queue
 static inline void *taskqueue_pop(TaskQueue *q) {
     if (q == NULL)
