@@ -249,7 +249,7 @@ int main(int argc, char** argv) {
     size_t num_tasks = num_lines / fac;
     num_tasks = num_lines % fac == 0 ? num_tasks: num_tasks + 1;
     
-    yatpool_init(&pool, num_threads, num_tasks);
+    yatpool_init(&pool, num_threads);
     
     for(int i = 0; i < (int)num_tasks; ++i) {
         Task* task;
@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
     size_t* offsets = (size_t*)calloc(num_tasks, sizeof(size_t));
     memset(offsets, 0, num_tasks * sizeof(size_t));
 
-    yatpool_reset(pool, num_tasks);
+    yatpool_reset(pool);
 
     for (size_t i = 0; i < num_tasks; ++i) {
         Task* task;
@@ -323,7 +323,7 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    yatpool_reset(pool, num_tasks);
+    yatpool_reset(pool);
     
     for (size_t i = 0; i < num_tasks; ++i) {
         Task* task;

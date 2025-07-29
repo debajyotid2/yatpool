@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
     size_t* hits = (size_t*)calloc(num_threads, sizeof(size_t));
     
     YATPool* pool;
-    yatpool_init(&pool, num_threads, num_threads);
+    yatpool_init(&pool, num_threads);
     
     for (size_t i=0; i<num_threads; ++i) {
         Task* task;

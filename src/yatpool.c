@@ -135,9 +135,8 @@ typedef struct yatpool {
     pthread_t* threads;
     size_t pool_size;
     TaskQueue* task_queue;
-    void** retvalarr;
     bool done;
-    int tasks_completed, tasks_submitted, total_tasks;
+    int tasks_completed, tasks_submitted;
     pthread_attr_t attr;
     pthread_mutex_t mutex;
     pthread_cond_t cond_queue, cond_slot_available, cond_done;
@@ -199,7 +198,6 @@ void* _yatpool_start_thread(void* arg) {
 
         // Check if done
         pthread_mutex_lock(&pool->mutex);
-        pool->retvalarr[pool->tasks_completed] = result;
         pool->tasks_completed++;
         if (pool->tasks_completed>=pool->tasks_submitted) {
             pthread_cond_broadcast(&pool->cond_done);
@@ -224,9 +222,8 @@ void _yatpool_create_threads(YATPool* pool) {
 }
 
 /// Initialize a thread pool.
-void yatpool_init(YATPool** pool, size_t num_threads, size_t num_tasks) {
+void yatpool_init(YATPool** pool, size_t num_threads) {
     if (num_threads==0) ERR_AND_EXIT("num_threads cannot be zero.");
-    if (num_tasks==0) ERR_AND_EXIT("num_tasks cannot be zero.");
 
     if (pool==NULL) {
         ERR("yatpool pointer is null.");
@@ -239,15 +236,12 @@ void yatpool_init(YATPool** pool, size_t num_threads, size_t num_tasks) {
    
     taskqueue_init(&(*pool)->task_queue, MAX_QUEUE_SIZE);
 
-    (*pool)->retvalarr = (void**)calloc(num_tasks, sizeof(void*));
-    
     pthread_attr_init(&(*pool)->attr);
     pthread_cond_init(&(*pool)->cond_queue, NULL);
     pthread_cond_init(&(*pool)->cond_slot_available, NULL);
     pthread_cond_init(&(*pool)->cond_done, NULL);
     pthread_mutex_init(&(*pool)->mutex, NULL);
 
-    (*pool)->total_tasks = num_tasks;
     (*pool)->pool_size = num_threads;
     (*pool)->done = false;
     (*pool)->tasks_completed = 0;
@@ -296,7 +290,7 @@ void** yatpool_wait(YATPool* pool) {
         pthread_cond_wait(&pool->cond_done, &pool->mutex);
     }
     pthread_mutex_unlock(&pool->mutex);
-    return pool->retvalarr;
+    return NULL;
 }
 
 /// Kill all threads
@@ -315,11 +309,11 @@ void* yatpool_terminate(YATPool* pool) {
         if (pthread_join(pool->threads[i], NULL) != 0) 
             ERR_AND_EXIT("Failed to join threads.");
     }
-    return pool->retvalarr;
+    return NULL;
 }
 
 /// Reset a thread pool without joining threads or destroying it.
-void yatpool_reset(YATPool* pool, size_t num_tasks) {
+void yatpool_reset(YATPool* pool) {
     if (pool==NULL) {
         ERR("yatpool pointer is null.");
         return;
@@ -332,7 +326,6 @@ void yatpool_reset(YATPool* pool, size_t num_tasks) {
     }
 
     pool->done = false;
-    pool->total_tasks = num_tasks;
     pool->tasks_completed = 0;
     pool->tasks_submitted = 0;
     pthread_mutex_unlock(&pool->mutex);
@@ -361,10 +354,6 @@ void yatpool_destroy(YATPool* pool) {
     taskqueue_destroy(pool->task_queue);
     free(pool->threads);
 
-    for (int i=0; i<pool->total_tasks; ++i) {
-        free(pool->retvalarr[i]);
-    }
-    free(pool->retvalarr);
     free(pool);
     return;
 }
