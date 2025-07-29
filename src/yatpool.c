@@ -292,6 +292,7 @@ void yatpool_destroy(YATPool *pool) {
         ERR("yatpool pointer is null.");
         return;
     }
+    pthread_mutex_lock(&pool->mutex);
     pool->done = true;
     pthread_cond_broadcast(&pool->cond_queue);
     pthread_mutex_unlock(&pool->mutex);
