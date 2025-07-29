@@ -39,18 +39,28 @@ typedef struct task {
 } Task;
 
 typedef struct queue {
-    size_t length, start, end;
+    size_t capacity, start, end;
     Task **data;
 } TaskQueue;
 
 /// Initialize a TaskQueue
-static inline TaskQueue* taskqueue_init(size_t length) {
-    assert(length);
+static inline TaskQueue* taskqueue_init(size_t capacity) {
+    assert(capacity);
 
     TaskQueue* q = (TaskQueue *)malloc(sizeof(TaskQueue));
+    if (!q) {
+        ERR("taskqueue malloc failed.");
+        return NULL;
+    }
 
-    q->data = (Task **)calloc(length, sizeof(Task *));
-    q->length = length;
+    q->data = (Task **)calloc(capacity+1, sizeof(Task *));
+    if (!q->data) {
+        ERR("taskqueue data calloc failed.");
+        return NULL;
+    }
+    // A circular buffer needs 1 extra slot for differentiating
+    // between full and empty
+    q->capacity = capacity+1;
     q->start = q->end = 0;
     
     return q;
@@ -66,29 +76,13 @@ static inline bool taskqueue_put(TaskQueue *q, Task *value) {
         ERR("Null pointer for value provided.");
         return false;
     }
-    if ((q->end + 1) % q->length == q->start) {
+    if ((q->end + 1) % q->capacity == q->start) {
         // Queue is full
         return false;
     }
     q->data[q->end] = value;
-    q->end = (q->end + 1) % q->length;
+    q->end = (q->end + 1) % q->capacity;
 
-    return true;
-}
-
-/// Get the first element and remove it from the queue
-static inline bool taskqueue_pop(TaskQueue *q, Task** task) {
-    if (q == NULL) {
-        ERR("Null value for queue pointer provided.");
-        return false;
-    }
-    if (q->start == q->end) {
-        // Empty queue
-        return false;
-    }
-
-    *task = q->data[q->start];
-    q->start = (q->start + 1) % q->length;
     return true;
 }
 
@@ -98,15 +92,34 @@ static inline bool taskqueue_empty(TaskQueue *q) {
     return q->start == q->end;
 }
 
+/// Get the first element and remove it from the queue
+static inline bool taskqueue_pop(TaskQueue *q, Task** task) {
+    if (!(q && task)) {
+        ERR("Null value for queue or task pointer provided.");
+        return false;
+    }
+    if (taskqueue_empty(q)) {
+        // Empty queue
+        return false;
+    }
+
+    *task = q->data[q->start];
+    q->start = (q->start + 1) % q->capacity;
+    return true;
+}
+
 /// Check if the queue is full
 static inline bool taskqueue_full(TaskQueue *q) {
     assert(q);
-    return (q->end + 1) % q->length == q->start;
+    return (q->end + 1) % q->capacity == q->start;
 }
 
 /// Destroy a TaskQueue instance
 static inline void taskqueue_destroy(TaskQueue *q) {
-    assert(q);
+    if (!q) {
+        ERR("Null queue pointer.");
+        return;
+    }
     free(q->data);
     free(q);
 }
@@ -120,11 +133,11 @@ typedef struct yatpool {
     pthread_t *threads;
     size_t pool_size;
     TaskQueue *task_queue;
-    bool done;
+    bool all_done;
     int tasks_completed, tasks_submitted;
     pthread_attr_t attr;
     pthread_mutex_t mutex;
-    pthread_cond_t cond_queue, cond_slot_available, cond_done;
+    pthread_cond_t cond_queue, cond_slot_available, cond_curr_batch_done;
 } YATPool;
 
 /// Start a task thread
@@ -138,10 +151,10 @@ void *_yatpool_worker(void *arg) {
         pthread_mutex_lock(&pool->mutex);
 
         // Wait until a task is available in the queue
-        while (taskqueue_empty(pool->task_queue) && !pool->done) {
+        while (taskqueue_empty(pool->task_queue) && !pool->all_done) {
             pthread_cond_wait(&pool->cond_queue, &pool->mutex);
         }
-        if (pool->done) {
+        if (pool->all_done) {
             pthread_mutex_unlock(&pool->mutex);
             break;
         }
@@ -167,7 +180,7 @@ void *_yatpool_worker(void *arg) {
         }
         pthread_mutex_unlock(&pool->mutex);
         if (all_done) {
-            pthread_cond_broadcast(&pool->cond_done);
+            pthread_cond_broadcast(&pool->cond_curr_batch_done);
         }
     }
     return NULL;
@@ -175,28 +188,37 @@ void *_yatpool_worker(void *arg) {
 
 /// Initialize a thread pool.
 YATPool *yatpool_init(size_t num_threads, size_t queue_size) {
-    if (num_threads == 0) {
-        ERR("num_threads cannot be zero.");
-        return NULL;
-    }
-    if (queue_size == 0) {
-        ERR("queue_size cannot be zero.");
+    if (num_threads == 0 || queue_size == 0) {
+        ERR("num_threads and queue_size cannot be zero.");
         return NULL;
     }
 
     YATPool *pool = (YATPool *)malloc(sizeof(YATPool));
-
-    pool->threads = (pthread_t *)calloc(num_threads, sizeof(pthread_t));
-    pool->task_queue = taskqueue_init(queue_size);
+    if (!pool) {
+        ERR("pool malloc failed");
+        goto error;
+    }
 
     pthread_attr_init(&pool->attr);
     pthread_cond_init(&pool->cond_queue, NULL);
     pthread_cond_init(&pool->cond_slot_available, NULL);
-    pthread_cond_init(&pool->cond_done, NULL);
+    pthread_cond_init(&pool->cond_curr_batch_done, NULL);
     pthread_mutex_init(&pool->mutex, NULL);
 
+    pool->threads = (pthread_t *)calloc(num_threads, sizeof(pthread_t));
+    if (!pool->threads) {
+        ERR("threadpool calloc failed");
+        goto error;
+    }
+    
+    pool->task_queue = taskqueue_init(queue_size);
+    if (!pool->task_queue) {
+        ERR("taskqueue init failed");
+        goto error;
+    }
+
     pool->pool_size = num_threads;
-    pool->done = false;
+    pool->all_done = false;
     pool->tasks_completed = 0;
     pool->tasks_submitted = 0;
 
@@ -204,22 +226,28 @@ YATPool *yatpool_init(size_t num_threads, size_t queue_size) {
         if (pthread_create(&pool->threads[i], &pool->attr, &_yatpool_worker,
                            pool) != 0) {
             ERR("Could not create thread");
-            pthread_mutex_lock(&pool->mutex);
-            pool->done = true;
-            pthread_mutex_unlock(&pool->mutex);
+            pool->all_done = true;
             pthread_cond_broadcast(&pool->cond_queue);
 
             for (size_t j=0; j<i; ++j) {
                 pthread_join(pool->threads[j], NULL);
             }
-            free(pool->threads);
-            taskqueue_destroy(pool->task_queue);
-            free(pool);
-
-            return NULL;
+            goto error;
         }
     }
     return pool;
+
+error:
+    if (pool) {
+        taskqueue_destroy(pool->task_queue);
+        free(pool->threads);
+        pthread_attr_destroy(&pool->attr);
+        pthread_cond_destroy(&pool->cond_queue);
+        pthread_cond_destroy(&pool->cond_slot_available);
+        pthread_cond_destroy(&pool->cond_curr_batch_done);
+        free(pool);
+    }
+    return NULL;
 }
 
 /// Submit a task to a threadpool
@@ -239,6 +267,11 @@ bool yatpool_put(YATPool *pool, void *(*taskfunc)(void *), void *arg,
     task->argdestructor = argdestructor;
 
     pthread_mutex_lock(&pool->mutex);
+    if (pool->all_done) {
+        pthread_mutex_unlock(&pool->mutex);
+        free(task);
+        return false;
+    }
 
     // If the queue is full, wait
     while (taskqueue_full(pool->task_queue)) {
@@ -264,7 +297,7 @@ bool yatpool_wait(YATPool *pool) {
     pthread_mutex_lock(&pool->mutex);
 
     while (pool->tasks_completed < pool->tasks_submitted) {
-        pthread_cond_wait(&pool->cond_done, &pool->mutex);
+        pthread_cond_wait(&pool->cond_curr_batch_done, &pool->mutex);
     }
     pool->tasks_completed = 0;
     pool->tasks_submitted = 0;
@@ -289,7 +322,11 @@ bool yatpool_destroy(YATPool *pool) {
         return false;
     }
     pthread_mutex_lock(&pool->mutex);
-    pool->done = true;
+    if (pool->all_done) {
+        pthread_mutex_unlock(&pool->mutex);
+        return false;
+    }
+    pool->all_done = true;
     pthread_cond_broadcast(&pool->cond_queue);
     pthread_mutex_unlock(&pool->mutex);
 
@@ -302,7 +339,7 @@ bool yatpool_destroy(YATPool *pool) {
     pthread_attr_destroy(&pool->attr);
     pthread_cond_destroy(&pool->cond_queue);
     pthread_cond_destroy(&pool->cond_slot_available);
-    pthread_cond_destroy(&pool->cond_done);
+    pthread_cond_destroy(&pool->cond_curr_batch_done);
     pthread_mutex_destroy(&pool->mutex);
     taskqueue_destroy(pool->task_queue);
     free(pool->threads);
