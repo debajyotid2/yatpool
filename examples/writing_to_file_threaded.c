@@ -240,7 +240,9 @@ int main(int argc, char** argv) {
     
     gettimeofday(&start, NULL);
 
-    YATPool* pool;
+    size_t queue_size = num_threads * 8;
+
+    YATPool* pool = yatpool_init(num_threads, queue_size);
    
     // Generate data in parallel
     Line** generated = (Line**)calloc(num_lines, sizeof(Line*));
@@ -248,11 +250,8 @@ int main(int argc, char** argv) {
     size_t fac = 8 * num_threads;
     size_t num_tasks = num_lines / fac;
     num_tasks = num_lines % fac == 0 ? num_tasks: num_tasks + 1;
-    
-    yatpool_init(&pool, num_threads);
-    
+        
     for(int i = 0; i < (int)num_tasks; ++i) {
-        Task* task;
         GenerateLinesArg* arg;
 
         size_t start_lineno = fac * i;
@@ -260,9 +259,9 @@ int main(int argc, char** argv) {
         end_lineno = end_lineno > (size_t)num_lines? num_lines: end_lineno;
         generatelinesarg_init(&arg, generated, start_lineno, end_lineno);
         
-        task_init(&task, &generate_lines, arg, &generatelinesarg_destroy);
-        yatpool_put(pool, task);
+        yatpool_put(pool, &generate_lines, arg, &generatelinesarg_destroy);
     }
+    yatpool_wait(pool);
     
     // Sort data so that it is in the correct order
     qsort(generated, num_lines, sizeof(Line*), cmp_lines);
@@ -282,16 +281,16 @@ int main(int argc, char** argv) {
     memset(offsets, 0, num_tasks * sizeof(size_t));
 
     for (size_t i = 0; i < num_tasks; ++i) {
-        Task* task;
         GetOffsetArg* arg;
         size_t start_lineno = fac * i;
         size_t end_lineno = fac * (i + 1);
         end_lineno = end_lineno > (size_t)num_lines? num_lines: end_lineno;
         getoffsetarg_init(&arg, generated, start_lineno, end_lineno, &offsets[i]);
 
-        task_init(&task, &get_offset, arg, &getoffsetarg_destroy);
-        yatpool_put(pool, task);
+        yatpool_put(pool, &get_offset, arg, &getoffsetarg_destroy);
     }
+
+    yatpool_wait(pool);
 
     for (size_t i=1; i<num_tasks; ++i)
         offsets[i] += offsets[i-1];
@@ -319,7 +318,6 @@ int main(int argc, char** argv) {
     }
 
     for (size_t i = 0; i < num_tasks; ++i) {
-        Task* task;
         WriteToFileArg* arg;
         size_t start_lineno = fac * i;
         size_t end_lineno = fac * (i + 1);
@@ -327,9 +325,10 @@ int main(int argc, char** argv) {
         size_t offset = (i == 0)? 0: offsets[i-1];
         writetofilearg_init(&arg, file_buf, generated, start_lineno, end_lineno, offset);
 
-        task_init(&task, &write_to_file, arg, &writetofilearg_destroy);
-        yatpool_put(pool, task);
+        yatpool_put(pool, &write_to_file, arg, &writetofilearg_destroy);
     }
+
+    yatpool_wait(pool);
     yatpool_destroy(pool);
 
     munmap(file_buf, file_size);

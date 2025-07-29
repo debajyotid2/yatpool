@@ -27,11 +27,12 @@
 #include <pthread.h>
 
 typedef struct yatpool YATPool;
-typedef struct task Task;
 
-void task_init(Task** task, void*(*taskfunc)(void *), void* arg, void(*argdestructor)(void *));
-void yatpool_init(YATPool** pool, size_t num_threads);
-void yatpool_put(YATPool* pool, Task* task);
-void yatpool_destroy(YATPool* pool);
+YATPool* yatpool_init(size_t num_threads, size_t queue_size);
+bool yatpool_wait(YATPool* pool);
+bool yatpool_put(YATPool *pool, void *(*taskfunc)(void *), void *arg,
+                 void (*argdestructor)(void *));
+size_t yatpool_pool_size(YATPool* pool);
+bool yatpool_destroy(YATPool* pool);
 
 #endif // _YATPOOL_H_

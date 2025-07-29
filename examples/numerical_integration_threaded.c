@@ -98,18 +98,17 @@ int main(int argc, char** argv) {
     double y_high = func(x_high);
 
     size_t* hits = (size_t*)calloc(num_threads, sizeof(size_t));
-    
-    YATPool* pool;
-    yatpool_init(&pool, num_threads);
+    size_t queue_size = num_threads * 8;
+
+    YATPool* pool = yatpool_init(num_threads, queue_size);
     
     for (size_t i=0; i<num_threads; ++i) {
-        Task* task;
         HitCtrArg* arg;
         hitctrarg_init(&arg, x_low, x_high, y_low, y_high, num_its, &hits[i]);
-        task_init(&task, &count_hits, arg, &hitctrarg_destroy);
-        yatpool_put(pool, task);
+        yatpool_put(pool, &count_hits, arg, &hitctrarg_destroy);
     }
 
+    yatpool_wait(pool);
     yatpool_destroy(pool);
 
     size_t total_hits = 0;
