@@ -171,7 +171,7 @@ void *_yatpool_worker(void *arg) {
         pthread_mutex_unlock(&pool->mutex);
 
         // Execute task
-        void *result = task->taskfunc(task->arg);
+        task->taskfunc(task->arg);
         // Destroy task
         if (task->argdestructor != NULL) {
             task->argdestructor(task->arg);
@@ -258,10 +258,10 @@ void yatpool_put(YATPool *pool, void *(*taskfunc)(void *), void *arg,
 }
 
 /// Wait until all tasks are completed
-void **yatpool_wait(YATPool *pool) {
+void yatpool_wait(YATPool *pool) {
     if (pool == NULL) {
         ERR("yatpool pointer is null.");
-        return NULL;
+        return;
     }
 
     pthread_mutex_lock(&pool->mutex);
@@ -269,46 +269,12 @@ void **yatpool_wait(YATPool *pool) {
     while (pool->tasks_completed < pool->tasks_submitted) {
         pthread_cond_wait(&pool->cond_done, &pool->mutex);
     }
-    pthread_mutex_unlock(&pool->mutex);
-    return NULL;
-}
-
-/// Kill all threads
-void *yatpool_terminate(YATPool *pool) {
-    if (pool == NULL) {
-        ERR("yatpool pointer is null.");
-        return NULL;
-    }
-
-    pthread_mutex_lock(&pool->mutex);
-    pool->done = true;
-    pthread_cond_broadcast(&pool->cond_queue);
-    pthread_mutex_unlock(&pool->mutex);
-
-    for (size_t i = 0; i < pool->pool_size; ++i) {
-        if (pthread_join(pool->threads[i], NULL) != 0)
-            ERR_AND_EXIT("Failed to join threads.");
-    }
-    return NULL;
-}
-
-/// Reset a thread pool without joining threads or destroying it.
-void yatpool_reset(YATPool *pool) {
-    if (pool == NULL) {
-        ERR("yatpool pointer is null.");
-        return;
-    }
-    pthread_mutex_lock(&pool->mutex);
-    if (pool->tasks_completed < pool->tasks_submitted) {
-        ERR("Previous task pool not completed. Reset failed.");
-        pthread_mutex_unlock(&pool->mutex);
-        return;
-    }
-
     pool->done = false;
     pool->tasks_completed = 0;
     pool->tasks_submitted = 0;
+
     pthread_mutex_unlock(&pool->mutex);
+    return;
 }
 
 /// Get the number of threads in a thread pool
@@ -326,6 +292,15 @@ void yatpool_destroy(YATPool *pool) {
         ERR("yatpool pointer is null.");
         return;
     }
+    pool->done = true;
+    pthread_cond_broadcast(&pool->cond_queue);
+    pthread_mutex_unlock(&pool->mutex);
+
+    for (size_t i = 0; i < pool->pool_size; ++i) {
+        if (pthread_join(pool->threads[i], NULL) != 0)
+            ERR_AND_EXIT("Failed to join threads.");
+    }
+
     pthread_attr_destroy(&pool->attr);
     pthread_cond_destroy(&pool->cond_queue);
     pthread_cond_destroy(&pool->cond_slot_available);

@@ -252,7 +252,6 @@ int main(int argc, char** argv) {
     yatpool_init(&pool, num_threads);
     
     for(int i = 0; i < (int)num_tasks; ++i) {
-        Task* task;
         GenerateLinesArg* arg;
 
         size_t start_lineno = fac * i;
@@ -281,10 +280,7 @@ int main(int argc, char** argv) {
     size_t* offsets = (size_t*)calloc(num_tasks, sizeof(size_t));
     memset(offsets, 0, num_tasks * sizeof(size_t));
 
-    yatpool_reset(pool);
-
     for (size_t i = 0; i < num_tasks; ++i) {
-        Task* task;
         GetOffsetArg* arg;
         size_t start_lineno = fac * i;
         size_t end_lineno = fac * (i + 1);
@@ -321,10 +317,7 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    yatpool_reset(pool);
-    
     for (size_t i = 0; i < num_tasks; ++i) {
-        Task* task;
         WriteToFileArg* arg;
         size_t start_lineno = fac * i;
         size_t end_lineno = fac * (i + 1);
@@ -336,7 +329,6 @@ int main(int argc, char** argv) {
     }
 
     yatpool_wait(pool);
-    yatpool_terminate(pool);
     yatpool_destroy(pool);
 
     munmap(file_buf, file_size);

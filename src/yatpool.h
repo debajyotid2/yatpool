@@ -29,11 +29,9 @@
 typedef struct yatpool YATPool;
 
 void yatpool_init(YATPool** pool, size_t num_threads);
-void** yatpool_wait(YATPool* pool);
+void yatpool_wait(YATPool* pool);
 void yatpool_put(YATPool *pool, void *(*taskfunc)(void *), void *arg,
                  void (*argdestructor)(void *));
-void* yatpool_terminate(YATPool* pool);
-void yatpool_reset(YATPool* pool);
 size_t yatpool_pool_size(YATPool* pool);
 void yatpool_destroy(YATPool* pool);
 
