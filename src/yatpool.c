@@ -40,7 +40,7 @@
 #define EMPTY_QUEUE_VALUE 0
 
 typedef struct queue {
-    size_t length, curr_size, start, end;
+    size_t length, start, end;
     void **data;
 } TaskQueue;
 
@@ -52,7 +52,6 @@ static inline void taskqueue_init(TaskQueue **q, size_t length) {
 
     (*q)->data = (void **)calloc(length, sizeof(void *));
     (*q)->length = length;
-    (*q)->curr_size = 0;
     (*q)->start = (*q)->end = 0;
 }
 
@@ -72,7 +71,6 @@ static inline bool taskqueue_put(TaskQueue *q, void *value) {
     }
     q->data[q->end] = value;
     q->end = (q->end + 1) % q->length;
-    (q->curr_size)++;
 
     return true;
 }
@@ -99,7 +97,6 @@ static inline void *taskqueue_pop(TaskQueue *q) {
 
     void *elem = q->data[q->start];
     q->start = (q->start + 1) % q->length;
-    q->curr_size--;
     return elem;
 }
 
