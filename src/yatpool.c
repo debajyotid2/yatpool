@@ -118,24 +118,10 @@ bool taskqueue_full(TaskQueue *q) {
     return (q->end + 1) % q->length == q->start;
 }
 
-/// Clear the task queue
-void taskqueue_clear(TaskQueue *q) {
-    if (q == NULL) ERR_AND_EXIT("Null value for queue pointer provided.");
-    q->curr_size = 0;
-    if (q->start == q->end) {
-        // Empty queue
-        return;
-    }
-    for (size_t i=q->start; i!=q->end; i=(i+1) % q->length) {
-        free(q->data[i]);
-    }
-}
-
 /// Destroy a TaskQueue instance
 void taskqueue_destroy(TaskQueue *q) {
     if (q == NULL) ERR_AND_EXIT("Null value for queue pointer provided.");
     
-    taskqueue_clear(q);
     free(q->data);
     free(q);
 }
