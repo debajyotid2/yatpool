@@ -260,8 +260,7 @@ int main(int argc, char** argv) {
         end_lineno = end_lineno > (size_t)num_lines? num_lines: end_lineno;
         generatelinesarg_init(&arg, generated, start_lineno, end_lineno);
         
-        task_init(&task, &generate_lines, arg, &generatelinesarg_destroy);
-        yatpool_put(pool, task);
+        yatpool_put(pool, &generate_lines, arg, &generatelinesarg_destroy);
     }
     yatpool_wait(pool);
     
@@ -292,8 +291,7 @@ int main(int argc, char** argv) {
         end_lineno = end_lineno > (size_t)num_lines? num_lines: end_lineno;
         getoffsetarg_init(&arg, generated, start_lineno, end_lineno, &offsets[i]);
 
-        task_init(&task, &get_offset, arg, &getoffsetarg_destroy);
-        yatpool_put(pool, task);
+        yatpool_put(pool, &get_offset, arg, &getoffsetarg_destroy);
     }
 
     yatpool_wait(pool);
@@ -334,8 +332,7 @@ int main(int argc, char** argv) {
         size_t offset = (i == 0)? 0: offsets[i-1];
         writetofilearg_init(&arg, file_buf, generated, start_lineno, end_lineno, offset);
 
-        task_init(&task, &write_to_file, arg, &writetofilearg_destroy);
-        yatpool_put(pool, task);
+        yatpool_put(pool, &write_to_file, arg, &writetofilearg_destroy);
     }
 
     yatpool_wait(pool);

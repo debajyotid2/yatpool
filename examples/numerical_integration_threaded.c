@@ -106,8 +106,7 @@ int main(int argc, char** argv) {
         Task* task;
         HitCtrArg* arg;
         hitctrarg_init(&arg, x_low, x_high, y_low, y_high, num_its, &hits[i]);
-        task_init(&task, &count_hits, arg, &hitctrarg_destroy);
-        yatpool_put(pool, task);
+        yatpool_put(pool, &count_hits, arg, &hitctrarg_destroy);
     }
 
     yatpool_wait(pool);
