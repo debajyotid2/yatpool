@@ -98,9 +98,9 @@ int main(int argc, char** argv) {
     double y_high = func(x_high);
 
     size_t* hits = (size_t*)calloc(num_threads, sizeof(size_t));
-    
-    YATPool* pool;
-    yatpool_init(&pool, num_threads);
+    size_t queue_size = num_threads * 8;
+
+    YATPool* pool = yatpool_init(num_threads, queue_size);
     
     for (size_t i=0; i<num_threads; ++i) {
         HitCtrArg* arg;

@@ -240,7 +240,9 @@ int main(int argc, char** argv) {
     
     gettimeofday(&start, NULL);
 
-    YATPool* pool;
+    size_t queue_size = num_threads * 8;
+
+    YATPool* pool = yatpool_init(num_threads, queue_size);
    
     // Generate data in parallel
     Line** generated = (Line**)calloc(num_lines, sizeof(Line*));
@@ -248,9 +250,7 @@ int main(int argc, char** argv) {
     size_t fac = 8 * num_threads;
     size_t num_tasks = num_lines / fac;
     num_tasks = num_lines % fac == 0 ? num_tasks: num_tasks + 1;
-    
-    yatpool_init(&pool, num_threads);
-    
+        
     for(int i = 0; i < (int)num_tasks; ++i) {
         GenerateLinesArg* arg;
 

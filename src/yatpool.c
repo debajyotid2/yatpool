@@ -187,21 +187,18 @@ void *_yatpool_worker(void *arg) {
 }
 
 /// Initialize a thread pool.
-void yatpool_init(YATPool **pool_ptr, size_t num_threads) {
+YATPool *yatpool_init(size_t num_threads, size_t queue_size) {
     if (num_threads == 0)
         ERR_AND_EXIT("num_threads cannot be zero.");
-
-    if (pool_ptr == NULL) {
-        ERR("yatpool pointer is null.");
-        return;
+    if (queue_size == 0) {
+        ERR_AND_EXIT("queue_size cannot be zero.");
     }
 
-    *pool_ptr = (YATPool *)malloc(sizeof(YATPool));
-    YATPool *pool = *pool_ptr;
+    YATPool *pool = (YATPool *)malloc(sizeof(YATPool));
 
     pool->threads = (pthread_t *)calloc(num_threads, sizeof(pthread_t));
 
-    taskqueue_init(&pool->task_queue, MAX_QUEUE_SIZE);
+    taskqueue_init(&pool->task_queue, queue_size);
 
     pthread_attr_init(&pool->attr);
     pthread_cond_init(&pool->cond_queue, NULL);
@@ -220,6 +217,7 @@ void yatpool_init(YATPool **pool_ptr, size_t num_threads) {
             ERR_AND_EXIT("Could not create thread");
         }
     }
+    return pool;
 };
 
 /// Submit a task to a threadpool
@@ -266,7 +264,6 @@ void yatpool_wait(YATPool *pool) {
     while (pool->tasks_completed < pool->tasks_submitted) {
         pthread_cond_wait(&pool->cond_done, &pool->mutex);
     }
-    pool->done = false;
     pool->tasks_completed = 0;
     pool->tasks_submitted = 0;
 
