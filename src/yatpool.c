@@ -64,12 +64,12 @@ bool taskqueue_put(TaskQueue *q, void* value) {
         ERR("Null pointer for value provided.");
         return false;
     }
-    if ((q->end + 1) % q->length == q->start) {
+    if ((q->end + 1) % (q->length + 1) == q->start) {
         // Queue is full
         return false;
     }
     q->data[q->end] = value;
-    q->end = (q->end + 1) % q->length;
+    q->end = (q->end + 1) % (q->length + 1);
     (q->curr_size)++;
 
     return true;
@@ -101,7 +101,7 @@ void* taskqueue_pop(TaskQueue *q) {
     }
 
     void* elem = q->data[q->start];
-    q->start = (q->start + 1) % q->length;
+    q->start = (q->start + 1) % (q->length + 1);
     q->curr_size--;
     return elem;
 }
@@ -115,7 +115,7 @@ bool taskqueue_empty(TaskQueue *q) {
 /// Check if the queue is full
 bool taskqueue_full(TaskQueue *q) {
     if (q == NULL) ERR_AND_EXIT("Null value for queue pointer provided.");
-    return (q->end + 1) % q->length == q->start;
+    return (q->end + 1) % (q->length + 1) == q->start;
 }
 
 /// Clear the task queue
@@ -126,7 +126,7 @@ void taskqueue_clear(TaskQueue *q) {
         // Empty queue
         return;
     }
-    for (size_t i=q->start; i!=q->end; i=(i+1) % q->length) {
+    for (size_t i=q->start; i!=q->end; i=(i+1) % (q->length + 1)) {
         free(q->data[i]);
     }
 }
