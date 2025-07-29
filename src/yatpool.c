@@ -109,7 +109,7 @@ void* taskqueue_pop(TaskQueue *q) {
 /// Check if the queue is empty
 bool taskqueue_empty(TaskQueue *q) {
     if (q == NULL) ERR_AND_EXIT("Null value for queue pointer provided.");
-    return q->curr_size == 0;
+    return q->start == q->end;
 }
 
 /// Check if the queue is full
