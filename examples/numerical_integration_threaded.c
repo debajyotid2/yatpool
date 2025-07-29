@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
     
     YATPool* pool;
     yatpool_init(&pool, num_threads, num_threads);
-
+    
     for (size_t i=0; i<num_threads; ++i) {
         Task* task;
         HitCtrArg* arg;
@@ -111,6 +111,7 @@ int main(int argc, char** argv) {
     }
 
     yatpool_wait(pool);
+    yatpool_terminate(pool);
     yatpool_destroy(pool);
 
     size_t total_hits = 0;
