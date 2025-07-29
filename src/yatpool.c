@@ -31,7 +31,7 @@
     }
 
 /// Size of the task queue of a threadpool
-#define MAX_QUEUE_SIZE 100
+#define MAX_QUEUE_SIZE 256
 
 /****************************************************************************/
 /******************************Task queue************************************/
@@ -45,7 +45,7 @@ typedef struct queue {
 } TaskQueue;
 
 /// Initialize a TaskQueue
-void taskqueue_init(TaskQueue **q, size_t length) {
+static inline void taskqueue_init(TaskQueue **q, size_t length) {
     assert(length);
 
     *q = (TaskQueue *)malloc(sizeof(TaskQueue));
@@ -57,7 +57,7 @@ void taskqueue_init(TaskQueue **q, size_t length) {
 }
 
 /// Add a value to the queue
-bool taskqueue_put(TaskQueue *q, void *value) {
+static inline bool taskqueue_put(TaskQueue *q, void *value) {
     if (q == NULL) {
         ERR("Null pointer for queue provided.");
         return false;
@@ -77,15 +77,8 @@ bool taskqueue_put(TaskQueue *q, void *value) {
     return true;
 }
 
-/// Get the current size of the queue
-size_t taskqueue_size(TaskQueue *q) {
-    if (q == NULL)
-        ERR_AND_EXIT("Null value for queue pointer provided.");
-    return q->curr_size;
-}
-
 /// Get the first element of the queue, without removing it
-void *taskqueue_get(TaskQueue *q) {
+static inline void *taskqueue_get(TaskQueue *q) {
     if (q == NULL)
         ERR_AND_EXIT("Null value for queue pointer provided.");
     if (q->start == q->end) {
@@ -96,7 +89,7 @@ void *taskqueue_get(TaskQueue *q) {
 }
 
 /// Get the first element and remove it from the queue
-void *taskqueue_pop(TaskQueue *q) {
+static inline void *taskqueue_pop(TaskQueue *q) {
     if (q == NULL)
         ERR_AND_EXIT("Null value for queue pointer provided.");
     if (q->start == q->end) {
@@ -111,21 +104,21 @@ void *taskqueue_pop(TaskQueue *q) {
 }
 
 /// Check if the queue is empty
-bool taskqueue_empty(TaskQueue *q) {
+static inline bool taskqueue_empty(TaskQueue *q) {
     if (q == NULL)
         ERR_AND_EXIT("Null value for queue pointer provided.");
     return q->start == q->end;
 }
 
 /// Check if the queue is full
-bool taskqueue_full(TaskQueue *q) {
+static inline bool taskqueue_full(TaskQueue *q) {
     if (q == NULL)
         ERR_AND_EXIT("Null value for queue pointer provided.");
     return (q->end + 1) % q->length == q->start;
 }
 
 /// Destroy a TaskQueue instance
-void taskqueue_destroy(TaskQueue *q) {
+static inline void taskqueue_destroy(TaskQueue *q) {
     if (q == NULL)
         ERR_AND_EXIT("Null value for queue pointer provided.");
 
