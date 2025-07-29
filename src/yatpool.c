@@ -115,7 +115,7 @@ bool taskqueue_empty(TaskQueue *q) {
 /// Check if the queue is full
 bool taskqueue_full(TaskQueue *q) {
     if (q == NULL) ERR_AND_EXIT("Null value for queue pointer provided.");
-    return (q->curr_size) == (q->length);
+    return (q->end + 1) % q->length == q->start;
 }
 
 /// Clear the task queue
@@ -151,7 +151,7 @@ typedef struct yatpool {
     TaskQueue* task_queue;
     void** retvalarr;
     bool done;
-    int completed, total_tasks;
+    int tasks_completed, tasks_submitted, total_tasks;
     pthread_attr_t attr;
     pthread_mutex_t mutex;
     pthread_cond_t cond_queue, cond_slot_available, cond_done;
@@ -181,37 +181,6 @@ void task_init(Task **task, void *(*taskfunc)(void *), void *arg, void (*argdest
     return;
 }
 
-/// Execute a task
-void* _yatpool_execute(YATPool* pool, Task* task) {
-    if (task==NULL) {
-        ERR("task pointer is null.");
-        return NULL;
-    }
-    if (pool==NULL) {
-        ERR("yatpool pointer is null.");
-        return NULL;
-    }
-
-    // Execute task
-    void* result = task->taskfunc(task->arg);
-
-    // Check if done
-    pthread_mutex_lock(&pool->mutex);
-    pool->retvalarr[pool->completed] = result;
-    pool->completed++;
-    if (pool->completed>=pool->total_tasks) {
-        pool->done = true;
-        pthread_cond_broadcast(&pool->cond_done);
-    }
-    pthread_mutex_unlock(&pool->mutex);
-
-    // Destroy task
-    if (task->argdestructor!=NULL)
-        task->argdestructor(task->arg);
-    free(task);
-
-    return result;
-}
 
 /// Start a task thread
 void* _yatpool_start_thread(void* arg) {
@@ -222,7 +191,7 @@ void* _yatpool_start_thread(void* arg) {
 
         pthread_mutex_lock(&pool->mutex);
 
-        // Wait until a slot is available in the queue
+        // Wait until a task is available in the queue
         while (taskqueue_empty(pool->task_queue) && !pool->done) {
             pthread_cond_wait(&pool->cond_queue, &pool->mutex);
         }
@@ -231,12 +200,25 @@ void* _yatpool_start_thread(void* arg) {
             break;
         }
         task = (Task *)taskqueue_pop(pool->task_queue);
+        pthread_cond_signal(&pool->cond_slot_available);
+        pthread_mutex_unlock(&pool->mutex);
+        
+        // Execute task
+        void* result = task->taskfunc(task->arg);
+        // Destroy task
+        if (task->argdestructor!=NULL) {
+            task->argdestructor(task->arg);
+        }
+        free(task);
 
-        if (taskqueue_empty(pool->task_queue)) {
-            pthread_cond_signal(&pool->cond_slot_available);
+        // Check if done
+        pthread_mutex_lock(&pool->mutex);
+        pool->retvalarr[pool->tasks_completed] = result;
+        pool->tasks_completed++;
+        if (pool->tasks_completed>=pool->tasks_submitted) {
+            pthread_cond_broadcast(&pool->cond_done);
         }
         pthread_mutex_unlock(&pool->mutex);
-        _yatpool_execute(pool, task);
     }
     return NULL;
 }
@@ -249,8 +231,9 @@ void _yatpool_create_threads(YATPool* pool) {
     }
 
     for (size_t i = 0; i < pool->pool_size; ++i) {
-        if (pthread_create(&pool->threads[i], &pool->attr, &_yatpool_start_thread, pool) != 0)
+        if (pthread_create(&pool->threads[i], &pool->attr, &_yatpool_start_thread, pool) != 0) {
             ERR_AND_EXIT("Could not create thread");
+        }
     }
 }
 
@@ -281,7 +264,8 @@ void yatpool_init(YATPool** pool, size_t num_threads, size_t num_tasks) {
     (*pool)->total_tasks = num_tasks;
     (*pool)->pool_size = num_threads;
     (*pool)->done = false;
-    (*pool)->completed = 0;
+    (*pool)->tasks_completed = 0;
+    (*pool)->tasks_submitted = 0;
 
     _yatpool_create_threads(*pool);
 };
@@ -306,8 +290,9 @@ void yatpool_put(YATPool* pool, Task* task) {
 
     // Once queue has space, add task to queue
     taskqueue_put(pool->task_queue, (void *)task);
-    pthread_mutex_unlock(&pool->mutex);
+    pool->tasks_submitted++;
     pthread_cond_signal(&pool->cond_queue);
+    pthread_mutex_unlock(&pool->mutex);
     
     return;
 }
@@ -321,9 +306,22 @@ void** yatpool_wait(YATPool* pool) {
 
     pthread_mutex_lock(&pool->mutex);
 
-    while (!pool->done) {
+    while (pool->tasks_completed < pool->tasks_submitted) {
         pthread_cond_wait(&pool->cond_done, &pool->mutex);
     }
+    pthread_mutex_unlock(&pool->mutex);
+    return pool->retvalarr;
+}
+
+/// Kill all threads
+void* yatpool_terminate(YATPool* pool) {
+    if (pool==NULL) {
+        ERR("yatpool pointer is null.");
+        return NULL;
+    }
+    
+    pthread_mutex_lock(&pool->mutex);
+    pool->done = true;
     pthread_cond_broadcast(&pool->cond_queue);
     pthread_mutex_unlock(&pool->mutex);
 
@@ -340,14 +338,18 @@ void yatpool_reset(YATPool* pool, size_t num_tasks) {
         ERR("yatpool pointer is null.");
         return;
     }
-    if (num_tasks==0) ERR_AND_EXIT("num_tasks cannot be zero.");
-    if (!(pool->done))
-        ERR_AND_EXIT("Previous task pool not completed. Reset failed.");
+    pthread_mutex_lock(&pool->mutex);
+    if (pool->tasks_completed < pool->tasks_submitted) {
+        ERR("Previous task pool not completed. Reset failed.");
+        pthread_mutex_unlock(&pool->mutex);
+        return;
+    }
 
-    taskqueue_clear(pool->task_queue);
     pool->done = false;
     pool->total_tasks = num_tasks;
-    pool->completed = 0;
+    pool->tasks_completed = 0;
+    pool->tasks_submitted = 0;
+    pthread_mutex_unlock(&pool->mutex);
 }
 
 /// Get the number of threads in a thread pool
@@ -379,4 +381,4 @@ void yatpool_destroy(YATPool* pool) {
     free(pool->retvalarr);
     free(pool);
     return;
-};
+}

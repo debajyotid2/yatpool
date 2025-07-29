@@ -33,6 +33,8 @@ void task_init(Task** task, void*(*taskfunc)(void *), void* arg, void(*argdestru
 void yatpool_init(YATPool** pool, size_t num_threads, size_t num_tasks);
 void** yatpool_wait(YATPool* pool);
 void yatpool_put(YATPool* pool, Task* task);
+void* yatpool_terminate(YATPool* pool);
+void yatpool_reset(YATPool* pool, size_t num_tasks);
 size_t yatpool_pool_size(YATPool* pool);
 void yatpool_destroy(YATPool* pool);
 
