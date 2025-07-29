@@ -249,7 +249,7 @@ int main(int argc, char** argv) {
     size_t num_tasks = num_lines / fac;
     num_tasks = num_lines % fac == 0 ? num_tasks: num_tasks + 1;
     
-    yatpool_init(&pool, num_threads, num_tasks);
+    yatpool_init(&pool, num_threads);
     
     for(int i = 0; i < (int)num_tasks; ++i) {
         Task* task;
@@ -263,9 +263,6 @@ int main(int argc, char** argv) {
         task_init(&task, &generate_lines, arg, &generatelinesarg_destroy);
         yatpool_put(pool, task);
     }
-
-    yatpool_wait(pool);
-    yatpool_destroy(pool);
     
     // Sort data so that it is in the correct order
     qsort(generated, num_lines, sizeof(Line*), cmp_lines);
@@ -284,8 +281,6 @@ int main(int argc, char** argv) {
     size_t* offsets = (size_t*)calloc(num_tasks, sizeof(size_t));
     memset(offsets, 0, num_tasks * sizeof(size_t));
 
-    yatpool_init(&pool, num_threads, num_tasks);
-
     for (size_t i = 0; i < num_tasks; ++i) {
         Task* task;
         GetOffsetArg* arg;
@@ -297,9 +292,6 @@ int main(int argc, char** argv) {
         task_init(&task, &get_offset, arg, &getoffsetarg_destroy);
         yatpool_put(pool, task);
     }
-
-    yatpool_wait(pool);
-    yatpool_destroy(pool);
 
     for (size_t i=1; i<num_tasks; ++i)
         offsets[i] += offsets[i-1];
@@ -326,8 +318,6 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    yatpool_init(&pool, num_threads, num_tasks);
-    
     for (size_t i = 0; i < num_tasks; ++i) {
         Task* task;
         WriteToFileArg* arg;
@@ -340,8 +330,6 @@ int main(int argc, char** argv) {
         task_init(&task, &write_to_file, arg, &writetofilearg_destroy);
         yatpool_put(pool, task);
     }
-
-    yatpool_wait(pool);
     yatpool_destroy(pool);
 
     munmap(file_buf, file_size);
