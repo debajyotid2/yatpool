@@ -160,34 +160,29 @@ void writetofilearg_destroy(void* arg) {
 /// Function for threadpool to generate a bunch of lines of data
 void* generate_lines(void* arg) {
     GenerateLinesArg* lnarg = (GenerateLinesArg*)arg;
+    unsigned int seed = time(NULL) ^ lnarg->start_lineno;   // Unique seed
+    
+    // Create a line buffer to store a single line
+    // Each number takes MAX_BUFLEN+1(comma)
+    // Each line takes NCOLS*(MAX_BUFLEN+1)+2(\n + \0)
+    size_t max_line_len = NCOLS*(MAX_BUFLEN+1)+2;
+    char* line_buffer = (char*)calloc(max_line_len, sizeof(char));
     
     for (size_t i=lnarg->start_lineno; i<lnarg->end_lineno; ++i) {
         line_init(&(lnarg->lines[i]), i+1);
 
-        char* joined = NULL;
+        char* ptr = line_buffer;
         size_t buflen = 0;
         for (int i=0; i<NCOLS; ++i) {
-            char num_str[MAX_BUFLEN];
-            memset(num_str, '\0', sizeof(num_str));
-            sprintf(num_str, "%d,", rand()%NCOLS);
-            buflen += strlen(num_str);
-
-            if (joined==NULL) {
-                joined = (char*)calloc(buflen, sizeof(char));
-                strncpy(joined, num_str, strlen(num_str));
-            } else {
-                joined = (char*)realloc(joined, buflen * sizeof(char));
-                strncpy(&joined[buflen-strlen(num_str)], num_str, strlen(num_str));
-            }
+            int num_bytes_written = sprintf(ptr, "%d,", rand_r(&seed)%NCOLS);
+            ptr += num_bytes_written;
+            buflen += num_bytes_written;
         }
-        joined[buflen-1] = '\n';
-        joined = (char*)realloc(joined, (buflen+1) * sizeof(char));
-        joined[buflen] = '\0';
-        *(lnarg->lines[i]->line) = string_create(joined, buflen);
-
-        free(joined);
+        line_buffer[buflen-1] = '\n';   // Last comma is replaced with a newline
+        *(lnarg->lines[i]->line) = string_create(line_buffer, buflen);
     }
 
+    free(line_buffer);
     return NULL;
 }
 

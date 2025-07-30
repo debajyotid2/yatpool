@@ -62,28 +62,18 @@ void string_print(const String* str) {
 }
 
 String generate_line() {
-    char* joined = NULL;
+    char* line_buffer = (char*)calloc(NCOLS*(MAX_BUFLEN+1)+2, sizeof(char));
     size_t buflen = 0;
+    char* ptr = line_buffer;
     for (int i=0; i<NCOLS; ++i) {
-        char num_str[MAX_BUFLEN];
-        memset(num_str, '\0', sizeof(num_str));
-        sprintf(num_str, "%d,", rand()%NCOLS);
-        buflen += strlen(num_str);
-
-        if (joined==NULL) {
-            joined = (char*)calloc(buflen, sizeof(char));
-            strncpy(joined, num_str, strlen(num_str));
-        } else {
-            joined = (char*)realloc(joined, buflen * sizeof(char));
-            strncpy(&joined[buflen-strlen(num_str)], num_str, strlen(num_str));
-        }
+        int bytes_written = sprintf(ptr, "%d,", rand()%NCOLS);
+        ptr += bytes_written;
+        buflen += bytes_written;
     }
-    joined[buflen-1] = '\n';
-    joined = (char*)realloc(joined, (buflen+1) * sizeof(char));
-    joined[buflen] = '\0';
+    line_buffer[buflen-1] = '\n';
 
-    String res = string_create(joined, buflen);
-    free(joined);
+    String res = string_create(line_buffer, buflen);
+    free(line_buffer);
     return res;
 }
 
