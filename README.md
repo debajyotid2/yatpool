@@ -1,5 +1,8 @@
 # YATPool
 
+> [!NOTE] 
+> This library is a **proof-of-concept** and *NOT* production ready. Use at your own risk.
+
 Yet another [thread pool](https://en.wikipedia.org/wiki/Thread_pool) implementation in pure C using POSIX threads.
 
 ## Features
@@ -15,36 +18,24 @@ This snippet from [numerical_integration_threaded.c](./examples/numerical_integr
 #include "yatpool.h"
 
 ...
-    double x_low = 0.0, x_high = 3.0;
-    double y_low = func(x_low);
-    double y_high = func(x_high);
-
     size_t* hits = (size_t*)calloc(num_threads, sizeof(size_t));
-    
-    // Initialize thread pool
-    YATPool* pool;
-    yatpool_init(&pool, num_threads, num_threads);
+    size_t queue_size = num_threads * 8;
+
+    YATPool* pool = yatpool_init(num_threads, queue_size);
     
     for (size_t i=0; i<num_threads; ++i) {
-        // Create task
-        Task* task;
         HitCtrArg* arg;
         hitctrarg_init(&arg, x_low, x_high, y_low, y_high, num_its, &hits[i]);
-        task_init(&task, &count_hits, arg, &hitctrarg_destroy);
-        
-        // Submit task to the thread pool
-        yatpool_put(pool, task);
+        yatpool_put(pool, &count_hits, arg, &hitctrarg_destroy);
     }
-    
-    // Wait for all tasks to be finished
-    yatpool_wait(pool);
 
-    // Destroy the thread pool
     yatpool_destroy(pool);
 
     size_t total_hits = 0;
     for (size_t i=0; i<num_threads; ++i)
         total_hits += hits[i];
+    
+    free(hits);
  ...
 ```
 
@@ -60,7 +51,7 @@ Once the dependencies (`gcc` and `cmake`) are installed, first [clone the reposi
 
 To build `yatpool`, please run
 
-```
+```shell
 cd scripts
 source build.sh
 ```
@@ -70,8 +61,25 @@ source build.sh
 ### Installation
 
 To install `yatpool` to your system, please run
-```
+
+```shell
 source install.sh
+```
+
+### Running tests (Optional)
+
+Tests are built and run using [Catch2](https://github.com/catchorg/Catch2). To build tests, 
+
+```shell
+cd scripts
+source build.sh <NUMBER OF THREADS>
+```
+
+and to run tests,
+
+```shell
+cd build
+ctest -V
 ```
 
 ## How to include in a project
@@ -86,12 +94,13 @@ Once `yatpool` has been built, a "preferred" project setup is as follows:
     └── foo.c
 ...
 ```
+
 With the above setup, it is easy to link `yatpool` when building your project, as follows.
-```
+
+```shell
 g++ -I./include -L./lib foo.c -o foo -lyatpool
 ```
 
 ## License
 
 [GPL v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
-

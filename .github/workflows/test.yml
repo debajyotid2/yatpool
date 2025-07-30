@@ -1,0 +1,16 @@
+name: test
+run-name: ${{github.actor}} is running tests.
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          echo "Building library ..."
+          cd scripts
+          source build.sh $(nproc) || exit 2
+      - run: |
+          echo "Running tests ..."
+          cd build
+          ctest -V
