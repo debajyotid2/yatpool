@@ -1,5 +1,8 @@
 # YATPool
 
+> [!NOTE] 
+> This library is a **proof-of-concept** and *NOT* production ready. Use at your own risk.
+
 Yet another [thread pool](https://en.wikipedia.org/wiki/Thread_pool) implementation in pure C using POSIX threads.
 
 ## Features
@@ -48,7 +51,7 @@ Once the dependencies (`gcc` and `cmake`) are installed, first [clone the reposi
 
 To build `yatpool`, please run
 
-```
+```shell
 cd scripts
 source build.sh
 ```
@@ -58,8 +61,25 @@ source build.sh
 ### Installation
 
 To install `yatpool` to your system, please run
-```
+
+```shell
 source install.sh
+```
+
+### Running tests (Optional)
+
+Tests are built and run using [Catch2](https://github.com/catchorg/Catch2). To build tests, 
+
+```shell
+cd scripts
+source build.sh <NUMBER OF THREADS>
+```
+
+and to run tests,
+
+```shell
+cd build
+ctest -V
 ```
 
 ## How to include in a project
@@ -74,12 +94,13 @@ Once `yatpool` has been built, a "preferred" project setup is as follows:
     └── foo.c
 ...
 ```
+
 With the above setup, it is easy to link `yatpool` when building your project, as follows.
-```
+
+```shell
 g++ -I./include -L./lib foo.c -o foo -lyatpool
 ```
 
 ## License
 
 [GPL v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
-
