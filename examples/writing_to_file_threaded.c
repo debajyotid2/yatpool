@@ -72,17 +72,18 @@ void line_destroy(Line *line) {
     }
 }
 
-void generatelinesarg_init(GenerateLinesArg **arg, Line **lines,
-                           size_t start_lineno, size_t end_lineno,
-                           size_t *offset_ptr) {
-    if (arg == NULL || lines == NULL)
-        return;
-    GenerateLinesArg **_arg = (GenerateLinesArg **)arg;
-    *_arg = (GenerateLinesArg *)malloc(sizeof(GenerateLinesArg));
-    (*_arg)->lines = lines;
-    (*_arg)->start_lineno = start_lineno;
-    (*_arg)->end_lineno = end_lineno;
-    (*_arg)->offset_ptr = offset_ptr;
+GenerateLinesArg *generatelinesarg_init(Line **lines, size_t start_lineno,
+                                        size_t end_lineno, size_t *offset_ptr) {
+    if (lines == NULL) {
+        return NULL;
+    }
+    GenerateLinesArg *arg =
+        (GenerateLinesArg *)malloc(sizeof(GenerateLinesArg));
+    arg->lines = lines;
+    arg->start_lineno = start_lineno;
+    arg->end_lineno = end_lineno;
+    arg->offset_ptr = offset_ptr;
+    return arg;
 }
 
 void generatelinesarg_destroy(void *arg) {
@@ -92,17 +93,19 @@ void generatelinesarg_destroy(void *arg) {
     free(_arg);
 }
 
-void writetofilearg_init(WriteToFileArg **arg, char *mapped, Line **lines,
-                         size_t start_lineno, size_t end_lineno,
-                         size_t offset) {
-    if (arg == NULL || mapped == NULL || lines == NULL)
-        return;
-    *arg = (WriteToFileArg *)malloc(sizeof(WriteToFileArg));
-    (*arg)->mapped_file = mapped;
-    (*arg)->lines = lines;
-    (*arg)->start_lineno = start_lineno;
-    (*arg)->end_lineno = end_lineno;
-    (*arg)->offset = offset;
+WriteToFileArg *writetofilearg_init(char *mapped, Line **lines,
+                                    size_t start_lineno, size_t end_lineno,
+                                    size_t offset) {
+    if (mapped == NULL || lines == NULL) {
+        return NULL;
+    }
+    WriteToFileArg *arg = (WriteToFileArg *)malloc(sizeof(WriteToFileArg));
+    arg->mapped_file = mapped;
+    arg->lines = lines;
+    arg->start_lineno = start_lineno;
+    arg->end_lineno = end_lineno;
+    arg->offset = offset;
+    return arg;
 }
 
 void writetofilearg_destroy(void *arg) {
@@ -207,13 +210,11 @@ int main(int argc, char **argv) {
     size_t *offsets = (size_t *)calloc(num_tasks, sizeof(size_t));
 
     for (int i = 0; i < (int)num_tasks; ++i) {
-        GenerateLinesArg *arg;
-
         size_t start_lineno = fac * i;
         size_t end_lineno = fac * (i + 1);
         end_lineno = end_lineno > (size_t)num_lines ? num_lines : end_lineno;
-        generatelinesarg_init(&arg, generated, start_lineno, end_lineno,
-                              &offsets[i]);
+        GenerateLinesArg *arg = generatelinesarg_init(generated, start_lineno,
+                                                      end_lineno, &offsets[i]);
 
         yatpool_put(pool, &generate_lines, arg, &generatelinesarg_destroy);
     }
@@ -259,13 +260,12 @@ int main(int argc, char **argv) {
     }
 
     for (size_t i = 0; i < num_tasks; ++i) {
-        WriteToFileArg *arg;
         size_t start_lineno = fac * i;
         size_t end_lineno = fac * (i + 1);
         end_lineno = end_lineno > (size_t)num_lines ? num_lines : end_lineno;
         size_t offset = (i == 0) ? 0 : offsets[i - 1];
-        writetofilearg_init(&arg, file_buf, generated, start_lineno, end_lineno,
-                            offset);
+        WriteToFileArg *arg = writetofilearg_init(
+            file_buf, generated, start_lineno, end_lineno, offset);
 
         yatpool_put(pool, &write_to_file, arg, &writetofilearg_destroy);
     }
