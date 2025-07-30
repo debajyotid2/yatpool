@@ -15,36 +15,24 @@ This snippet from [numerical_integration_threaded.c](./examples/numerical_integr
 #include "yatpool.h"
 
 ...
-    double x_low = 0.0, x_high = 3.0;
-    double y_low = func(x_low);
-    double y_high = func(x_high);
-
     size_t* hits = (size_t*)calloc(num_threads, sizeof(size_t));
-    
-    // Initialize thread pool
-    YATPool* pool;
-    yatpool_init(&pool, num_threads, num_threads);
+    size_t queue_size = num_threads * 8;
+
+    YATPool* pool = yatpool_init(num_threads, queue_size);
     
     for (size_t i=0; i<num_threads; ++i) {
-        // Create task
-        Task* task;
         HitCtrArg* arg;
         hitctrarg_init(&arg, x_low, x_high, y_low, y_high, num_its, &hits[i]);
-        task_init(&task, &count_hits, arg, &hitctrarg_destroy);
-        
-        // Submit task to the thread pool
-        yatpool_put(pool, task);
+        yatpool_put(pool, &count_hits, arg, &hitctrarg_destroy);
     }
-    
-    // Wait for all tasks to be finished
-    yatpool_wait(pool);
 
-    // Destroy the thread pool
     yatpool_destroy(pool);
 
     size_t total_hits = 0;
     for (size_t i=0; i<num_threads; ++i)
         total_hits += hits[i];
+    
+    free(hits);
  ...
 ```
 

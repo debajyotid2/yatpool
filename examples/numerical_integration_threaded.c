@@ -108,13 +108,13 @@ int main(int argc, char** argv) {
         yatpool_put(pool, &count_hits, arg, &hitctrarg_destroy);
     }
 
-    yatpool_wait(pool);
     yatpool_destroy(pool);
 
     size_t total_hits = 0;
     for (size_t i=0; i<num_threads; ++i)
         total_hits += hits[i];
-
+    
+    printf("This program calculates the integral of f(x) = 9 - x^2 from x = %.3g to x = %.3g.\n", x_low, x_high);
     printf("Numerically calculated = %f\n", (double)total_hits / (double)(num_its * num_threads) * (y_low-y_high) * (x_high-x_low));
     printf("Analytical solution = %f\n", 9.0 * (x_high - x_low) - (x_high * x_high * x_high - x_low * x_low * x_low) / 3.0);
     
