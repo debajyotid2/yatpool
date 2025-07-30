@@ -35,13 +35,9 @@
 #define MAX_BUFLEN 10 // Maximum number of digits in each int to generate
 
 typedef struct {
+    size_t lineno;
     char *data;
     size_t length;
-} String;
-
-typedef struct {
-    size_t lineno;
-    String *line;
 } Line;
 
 typedef struct {
@@ -59,44 +55,21 @@ typedef struct {
     size_t offset;
 } WriteToFileArg;
 
-String string_create(const char *str, size_t length) {
-    if (str == NULL) {
-        fprintf(stderr, "Null string provided.\n");
-        abort();
-    }
-    String res;
-    res.length = length;
-    res.data = (char *)calloc(length + 1, sizeof(char));
-    strncpy(res.data, str, length);
-    res.data[length] = '\0';
-    return res;
-}
-
-void string_destroy(String *str) {
-    if (str == NULL)
-        return;
-    free(str->data);
-}
-
-void string_print(const String *str) {
-    if (str == NULL)
-        return;
-    printf("%s\n", str->data);
-}
-
 void line_init(Line **line, size_t lineno) {
     if (line == NULL)
         return;
     *line = (Line *)malloc(sizeof(Line));
-    (*line)->line = (String *)malloc(sizeof(String));
+    (*line)->data = NULL;
+    (*line)->length = 0;
     (*line)->lineno = lineno;
 }
 
 void line_destroy(Line *line) {
     if (line == NULL)
         return;
-    string_destroy(line->line);
-    free(line->line);
+    if (line->data) {
+        free(line->data);
+    }
 }
 
 void generatelinesarg_init(GenerateLinesArg **arg, Line **lines,
@@ -162,7 +135,12 @@ void *generate_lines(void *arg) {
             buflen += num_bytes_written;
         }
         line_buffer[buflen - 1] = '\n'; // Last comma is replaced with a newline
-        *(lnarg->lines[i]->line) = string_create(line_buffer, buflen);
+
+        // Copy buffer to line array
+        lnarg->lines[i]->data = (char *)calloc(buflen + 1, sizeof(char));
+        memcpy(lnarg->lines[i]->data, line_buffer, buflen * sizeof(char));
+        lnarg->lines[i]->data[buflen] = '\0'; // Null-terminate the line
+        lnarg->lines[i]->length = buflen;
         total_line_length += buflen;
     }
     *(lnarg->offset_ptr) = total_line_length;
@@ -180,8 +158,8 @@ void *write_to_file(void *arg) {
 
     for (size_t i = currarg->start_lineno; i < currarg->end_lineno; ++i) {
         memcpy(currarg->mapped_file + running_total_bytes,
-               currarg->lines[i]->line->data, currarg->lines[i]->line->length);
-        running_total_bytes += currarg->lines[i]->line->length;
+               currarg->lines[i]->data, currarg->lines[i]->length);
+        running_total_bytes += currarg->lines[i]->length;
     }
     return NULL;
 }
