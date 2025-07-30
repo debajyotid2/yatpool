@@ -4,11 +4,17 @@ project(yatpool)
 
 set(CMAKE_C_COMPILER g++)
 
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+set(CMAKE_PREFIX_PATH ${CMAKE_SOURCE_DIR}/third_party)
 set(PROJECT_ROOT_DIR ${CMAKE_SOURCE_DIR})
 set(PROJECT_LIBRARY_NAME yatpool)
 set(PROJECT_VERSION 0.0.1)
 
 add_subdirectory(${PROJECT_ROOT_DIR}/src)
+
+enable_testing()
+
+add_subdirectory(tests)
 
 set_target_properties(${PROJECT_LIBRARY_NAME} PROPERTIES VERSION ${PROJECT_VERSION})
 

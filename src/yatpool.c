@@ -154,7 +154,7 @@ void *_yatpool_worker(void *arg) {
         while (taskqueue_empty(pool->task_queue) && !pool->all_done) {
             pthread_cond_wait(&pool->cond_queue, &pool->mutex);
         }
-        if (pool->all_done) {
+        if (pool->all_done && taskqueue_empty(pool->task_queue)) {
             pthread_mutex_unlock(&pool->mutex);
             break;
         }
@@ -333,6 +333,14 @@ bool yatpool_destroy(YATPool *pool) {
     for (size_t i = 0; i < pool->pool_size; ++i) {
         if (pthread_join(pool->threads[i], NULL) != 0) {
             ERR("Failed to join threads.");
+        }
+    }
+    
+    // Free any remaining not done tasks
+    while(!taskqueue_empty(pool->task_queue)) {
+        Task *t;
+        if(taskqueue_pop(pool->task_queue, &t)) {
+            free(t);
         }
     }
 
