@@ -42,10 +42,19 @@ The file to write to and the number of rows of data to generated should be speci
 ./writing_to_file_threaded bar.csv 1000000
 ```
 
-### Multithreaded server
+### Multithreaded TCP server
 
 To run the server,
 
 ```shell
-./multithreaded_server
+./tcp_server_multithreaded
+```
+
+### Image blurring
+
+This example applies a box blur to a synthetic image of Perlin worms.
+
+```shell
+./image_blurring_serial
+./image_blurring_multithreaded
 ```
