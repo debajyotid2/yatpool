@@ -141,7 +141,7 @@ typedef struct yatpool {
 } YATPool;
 
 /// Start a task thread
-void *_yatpool_worker(void *arg) {
+static void *_yatpool_worker(void *arg) {
     YATPool *pool = (YATPool *)arg;
     bool all_done = false;
     Task *task;
