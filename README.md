@@ -41,7 +41,7 @@ This snippet from [numerical_integration_threaded.c](./examples/numerical_integr
 
 ## How to build/install
 
-Only Linux-based operating systems are supported as of now.
+Only Linux-based operating systems are supported.
 
 `g++` (v.11.4.0 and above) is the compiler to be used for compiling the project. If not already installed, `gcc` can be downloaded from the package repository of the target Linux distribution (e.g. `apt` for Ubuntu) or [built from source](https://gcc.gnu.org/install/). `CMake` (v.3.27 and above) is used for building the library, and can also be installed (if available) from the package repository (e.g. `apt` for Ubuntu) or [built from source](https://cmake.org/download/).
 
