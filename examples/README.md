@@ -1,9 +1,10 @@
 # Examples for `yatpool`
 
-Two examples are included to show the functions of `yatpool`. 
+These examples are included to show the functions of `yatpool`. 
 
 - Numerical integration: $y = 9-x^{2}$ is integrated between $x = 0$ and $x = 3$. The area is evaluated using Monte Carlo simulations.
 - Writing data to a CSV: Random integers are generated for a given number of rows and written to a CSV.
+- Multithreaded TCP server: A basic TCP server that echoes back the bytes it receives.
 
 ## How to build
 
@@ -27,7 +28,7 @@ Number of threads for the threaded versions can be changed in the source.
 
 The number of iterations must be specified when running the binaries. Please specify at least 1 million iterations.
 
-```
+```shell
 ./numerical_integration_serial 1000000
 ./numerical_integration_threaded 1000000
 ```
@@ -35,7 +36,25 @@ The number of iterations must be specified when running the binaries. Please spe
 ### Writing data to a CSV
 
 The file to write to and the number of rows of data to generated should be specified when running the binaries.
-```
+
+```shell
 ./writing_to_file_serial foo.csv 1000000
 ./writing_to_file_threaded bar.csv 1000000
+```
+
+### Multithreaded TCP server
+
+To run the server,
+
+```shell
+./tcp_server_multithreaded
+```
+
+### Image blurring
+
+This example applies a box blur to a synthetic image of Perlin worms.
+
+```shell
+./image_blurring_serial
+./image_blurring_multithreaded
 ```
